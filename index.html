@@ -4,7 +4,69 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recherche de codes postaux</title>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+    }
+    form {
+      max-width: 400px;
+      margin: 0 auto;
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input[type="text"],
+    input[type="number"],
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #results {
+      margin-top: 20px;
+    }
+    .loading {
+      text-align: center;
+      margin-top: 20px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 5px;
+    }
+    li a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    li a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
   <h2>Recherche de codes postaux</h2>
@@ -22,10 +84,18 @@
     <!-- Les résultats seront affichés ici -->
   </div>
 
+  <div id="loading" class="loading" style="display: none;">
+    Chargement en cours...
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script>
     function rechercherCodesPostaux() {
       var codePostal = document.getElementById('codePostal').value;
       var rayon = document.getElementById('rayon').value;
+
+      // Afficher l'indicateur de chargement
+      $('#loading').show();
 
       // Requête AJAX pour obtenir les coordonnées géographiques du code postal
       var nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&postalcode=${codePostal}&country=France&limit=1`;
@@ -40,10 +110,12 @@
             rechercherCodesPostauxAvecCoordonnees(latitude, longitude, rayon);
           } else {
             $('#results').html('<p>Aucune information trouvée pour le code postal spécifié.</p>');
+            $('#loading').hide();
           }
         },
         error: function() {
           $('#results').html('<p>Une erreur est survenue lors de la recherche des coordonnées.</p>');
+          $('#loading').hide();
         }
       });
     }
@@ -65,24 +137,25 @@
         data: { data: overpassQuery },
         success: function(response) {
           afficherCodesPostaux(response);
+          $('#loading').hide();
         },
         error: function() {
           $('#results').html('<p>Une erreur est survenue lors de la recherche.</p>');
+          $('#loading').hide();
         }
       });
     }
 
     function afficherCodesPostaux(data) {
-      var codesPostaux = [];
+      var resultsHtml = '<p>Résultats :</p><ul>';
       data.elements.forEach(function(element) {
         if (element.tags && element.tags['addr:postcode']) {
-          codesPostaux.push(element.tags['addr:postcode']);
-        }
-      });
+          var codePostal = element.tags['addr:postcode'];
+          var ville = element.tags['name'] || 'Ville inconnue';
+          var lien = `https://procuration-front-populaire.fr/console/proposals?status=pending&q=${codePostal}`;
 
-      var resultsHtml = '<p>Codes postaux trouvés :</p><ul>';
-      codesPostaux.forEach(function(code) {
-        resultsHtml += '<li>' + code + '</li>';
+          resultsHtml += `<li><a href="${lien}" target="_blank">${codePostal} (${ville})</a></li>`;
+        }
       });
       resultsHtml += '</ul>';
 
