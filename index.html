@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recherche de codes postaux</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <h2>Recherche de codes postaux</h2>
+  <form id="postcodeForm">
+    <label for="codePostal">Code Postal :</label>
+    <input type="text" id="codePostal" name="codePostal" required><br><br>
+
+    <label for="rayon">Rayon (en km) :</label>
+    <input type="number" id="rayon" name="rayon" value="10"><br><br>
+
+    <button type="button" onclick="rechercherCodesPostaux()">Rechercher</button>
+  </form>
+
+  <div id="results">
+    <!-- Les résultats seront affichés ici -->
+  </div>
+
+  <script>
+    function rechercherCodesPostaux() {
+      var codePostal = document.getElementById('codePostal').value;
+      var rayon = document.getElementById('rayon').value;
+
+      // Requête AJAX pour obtenir les coordonnées géographiques du code postal
+      var nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&postalcode=${codePostal}&country=France&limit=1`;
+
+      $.ajax({
+        url: nominatimUrl,
+        type: 'GET',
+        success: function(response) {
+          if (response.length > 0) {
+            var latitude = response[0].lat;
+            var longitude = response[0].lon;
+            rechercherCodesPostauxAvecCoordonnees(latitude, longitude, rayon);
+          } else {
+            $('#results').html('<p>Aucune information trouvée pour le code postal spécifié.</p>');
+          }
+        },
+        error: function() {
+          $('#results').html('<p>Une erreur est survenue lors de la recherche des coordonnées.</p>');
+        }
+      });
+    }
+
+    function rechercherCodesPostauxAvecCoordonnees(latitude, longitude, rayon) {
+      // Effectuer la requête vers Overpass API avec les coordonnées obtenues
+      var overpassUrl = "https://overpass-api.de/api/interpreter";
+      var overpassQuery = `[out:json][timeout:250];
+        (
+          node[place~"city|town|village"](around:${rayon * 1000},${latitude},${longitude});
+        );
+        out body;
+        >;
+        out skel qt;`;
+
+      $.ajax({
+        url: overpassUrl,
+        type: 'POST',
+        data: { data: overpassQuery },
+        success: function(response) {
+          afficherCodesPostaux(response);
+        },
+        error: function() {
+          $('#results').html('<p>Une erreur est survenue lors de la recherche.</p>');
+        }
+      });
+    }
+
+    function afficherCodesPostaux(data) {
+      var codesPostaux = [];
+      data.elements.forEach(function(element) {
+        if (element.tags && element.tags['addr:postcode']) {
+          codesPostaux.push(element.tags['addr:postcode']);
+        }
+      });
+
+      var resultsHtml = '<p>Codes postaux trouvés :</p><ul>';
+      codesPostaux.forEach(function(code) {
+        resultsHtml += '<li>' + code + '</li>';
+      });
+      resultsHtml += '</ul>';
+
+      $('#results').html(resultsHtml);
+    }
+  </script>
+</body>
+</html>
